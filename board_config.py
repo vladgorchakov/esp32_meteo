@@ -21,7 +21,7 @@ PIN_HCSR04_TRIG = 12     # PLACEHOLDER — adjust to actual wiring
 PIN_HCSR04_ECHO = 13     # PLACEHOLDER — adjust to actual wiring (use voltage divider 5V->3.3V)
 
 # PIR Motion Sensor
-PIN_PIR = 27             # PLACEHOLDER — adjust to actual wiring
+PIN_PIR = 19             # PLACEHOLDER — adjust to actual wiring
 
 # Battery Voltage Monitoring (ADC1 only, input-only pins)
 PIN_BATTERY_ADC = 34     # PLACEHOLDER — adjust to actual wiring (ADC1_CH6, input only)
@@ -31,3 +31,12 @@ BATTERY_VREF_MV = 3300       # ADC reference voltage in mV
 # User Interface Hardware
 PIN_STATUS_LED = 2       # Built-in LED on ESP32 DevKit board
 PIN_BUTTON_BOOT = 0      # On-board BOOT button (active LOW)
+
+# Navigation Buttons (Active LOW with internal pull-up)
+# TODO: assign on target board (placeholder pins for DevKit)
+PIN_BUTTON_1 = 32        # BUTTON_1: Prev screen / Back in menu
+PIN_BUTTON_2 = 33        # BUTTON_2: First screen / Up in menu
+PIN_BUTTON_3 = 25        # BUTTON_3: Next screen / Forward/Confirm in menu
+PIN_BUTTON_4 = 26        # BUTTON_4: Last screen / Down in menu
+PIN_BUTTON_5 = 15        # BUTTON_5: Display toggle / Select item in menu
+PIN_TOUCH_BUTTON = 27    # TOUCH_BUTTON: Open/Close menu (Touch pad or digital button)
