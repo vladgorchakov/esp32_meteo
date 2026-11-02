@@ -5,6 +5,9 @@ import config
 from lib import config_store
 from lib import time_service
 from lib import diagnostics
+from lib.display_manager import display
+from lib.input_manager import input_mgr
+from lib.screen_manager import screen_mgr
 
 try:
     import asyncio
@@ -15,13 +18,6 @@ except ImportError:
 # -----------------------------------------------------------------------------
 # Placeholder Coroutines for Future Phases (Next Phases)
 # -----------------------------------------------------------------------------
-
-async def task_display_runner():
-    """Placeholder task for SSD1306 OLED display UI rendering."""
-    print("[UI] next phase: OLED UI loop")
-    while True:
-        await asyncio.sleep(config.DEFAULT_UI_UPDATE_INTERVAL_SEC)
-
 
 async def task_sensor_runner():
     """Placeholder task for scheduled sensor acquisition (BME280, DS18B20, etc.)."""
@@ -65,8 +61,11 @@ async def main_async():
     """Async main routine launching background services."""
     print("[SYS] Launching background asyncio tasks...")
 
-    # Spawn asynchronous service tasks into event loop
-    asyncio.create_task(task_display_runner())
+    # Spawn input debouncer and display UI loops
+    asyncio.create_task(input_mgr.poll_task())
+    asyncio.create_task(screen_mgr.ui_task())
+
+    # Spawn placeholder background tasks
     asyncio.create_task(task_sensor_runner())
     asyncio.create_task(task_network_runner())
     asyncio.create_task(task_mqtt_runner())
@@ -101,7 +100,11 @@ def start():
         time_service.is_synced(), time_service.now_unix()
     ))
 
-    # 4. Start asyncio event loop
+    # 4. Initialize display hardware and input manager
+    print("[BOOT] Initializing display and input subsystems...")
+    screen_mgr.init()
+
+    # 5. Start asyncio event loop
     try:
         asyncio.run(main_async())
     except KeyboardInterrupt:

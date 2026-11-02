@@ -40,3 +40,5 @@ PIN_BUTTON_3 = 25        # BUTTON_3: Next screen / Forward/Confirm in menu
 PIN_BUTTON_4 = 26        # BUTTON_4: Last screen / Down in menu
 PIN_BUTTON_5 = 15        # BUTTON_5: Display toggle / Select item in menu
 PIN_TOUCH_BUTTON = 27    # TOUCH_BUTTON: Open/Close menu (Touch pad or digital button)
+TOUCH_USE_HARDWARE_TOUCHPAD = False  # Set to True to use machine.TouchPad, False for digital Pin
+BUTTON_ACTIVE_LEVEL = 0  # 0 = active LOW (pull-up to GND)
