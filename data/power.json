@@ -1,0 +1,6 @@
+{
+  "power_mode": "always_on",
+  "sleep_duration_sec": 60,
+  "battery_adc_enabled": false,
+  "battery_min_voltage": 3.3
+}
