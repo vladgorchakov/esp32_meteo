@@ -123,9 +123,11 @@ class ScreenManager:
 
     def handle_input_event(self, button_name, event_type):
         """Route user input events according to system state and navigation rules."""
-        # 1. If display is OFF, ignore all buttons except BUTTON_5 and ROTARY_SW (§6.1)
+        # 1. If display is OFF, wake up on BUTTON_5, ROTARY_SW, or encoder turn (§6.1)
         if not display.is_on():
             if button_name in ("BUTTON_5", "ROTARY_SW") and event_type == "SHORT":
+                self.toggle_display_power()
+            elif button_name == "ROTARY":
                 self.toggle_display_power()
             return
 
