@@ -9,6 +9,7 @@ from lib.screens.main_screen import MainScreen
 from lib.screens.wifi_screen import WifiScreen
 from lib.screens.system_screen import SystemScreen
 from lib.screens.menu_screen import MenuScreen
+from lib.screens.sensor_screen import SensorScreen
 
 try:
     import asyncio
@@ -49,6 +50,23 @@ class ScreenManager:
         self.previous_screen = self.main_scr
         self.in_menu = False
         self._running = False
+        self._dirty = True
+        self._last_render_ms = 0
+
+    def register_sensor_screens(self, sensors):
+        """Construct carousel containing main screen, active sensor screens, wifi, and system screens."""
+        sensor_screens = [SensorScreen(s) for s in sensors if s.enabled]
+        self.carousel = [self.main_scr] + sensor_screens + [self.wifi_scr, self.system_scr]
+        if self.carousel_idx >= len(self.carousel):
+            self.carousel_idx = 0
+        self._dirty = True
+        print("[UI] Registered {} sensor screens in carousel (total: {})".format(
+            len(sensor_screens), len(self.carousel)
+        ))
+
+    def mark_dirty(self):
+        """Request immediate display re-render on next UI cycle."""
+        self._dirty = True
 
     def init(self):
         """Initialize display and input manager, show splash screen."""
@@ -64,6 +82,7 @@ class ScreenManager:
             self.in_menu = True
             self.current_screen = self.menu_scr
             self.current_screen.on_enter()
+            self._dirty = True
 
     def close_menu(self):
         """Close settings menu and return to previous screen."""
@@ -71,6 +90,7 @@ class ScreenManager:
             self.in_menu = False
             self.current_screen = self.previous_screen
             self.current_screen.on_enter()
+            self._dirty = True
 
     def toggle_menu(self):
         """Toggle menu open/closed state."""
@@ -86,6 +106,7 @@ class ScreenManager:
                 self.carousel_idx = idx
                 self.current_screen = scr
                 self.current_screen.on_enter()
+                self._dirty = True
                 return
 
     def next_screen(self):
@@ -93,24 +114,28 @@ class ScreenManager:
         self.carousel_idx = (self.carousel_idx + 1) % len(self.carousel)
         self.current_screen = self.carousel[self.carousel_idx]
         self.current_screen.on_enter()
+        self._dirty = True
 
     def prev_screen(self):
         """Step back to previous screen in carousel (§6.1: wrap around to last)."""
         self.carousel_idx = (self.carousel_idx - 1) % len(self.carousel)
         self.current_screen = self.carousel[self.carousel_idx]
         self.current_screen.on_enter()
+        self._dirty = True
 
     def first_screen(self):
         """Jump directly to the first screen (Main Screen) (§6.1)."""
         self.carousel_idx = 0
         self.current_screen = self.carousel[0]
         self.current_screen.on_enter()
+        self._dirty = True
 
     def last_screen(self):
         """Jump directly to the last screen (System Screen) (§6.1)."""
         self.carousel_idx = len(self.carousel) - 1
         self.current_screen = self.carousel[self.carousel_idx]
         self.current_screen.on_enter()
+        self._dirty = True
 
     def toggle_display_power(self):
         """Toggle display ON/OFF (§6.1)."""
@@ -191,10 +216,14 @@ class ScreenManager:
             # 3. Update active view state
             self.current_screen.update(now_ms)
 
-            # 4. Render and flush to display
+            # 4. Render and flush to display when dirty or on periodic timer (500ms)
             if display.is_on():
-                self.current_screen.render(display)
-                display.flush()
+                should_render = self._dirty or time.ticks_diff(now_ms, self._last_render_ms) >= 500
+                if should_render:
+                    self.current_screen.render(display)
+                    display.flush()
+                    self._dirty = False
+                    self._last_render_ms = now_ms
 
             await asyncio.sleep_ms(UI_LOOP_INTERVAL_MS)
 

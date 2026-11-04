@@ -1,1 +1,63 @@
-{}
+{
+  "bme280_1": {
+    "name": "Room Climate",
+    "type": "BME280",
+    "interface": "I2C",
+    "address": "0x76",
+    "pins": {
+      "sda": 16,
+      "scl": 17
+    },
+    "poll_interval_ms": 3000,
+    "enabled": true,
+    "description": "Indoor temperature, humidity, and atmospheric pressure"
+  },
+  "bmp280_1": {
+    "name": "Barometer",
+    "type": "BMP280",
+    "interface": "I2C",
+    "address": "0x76",
+    "pins": {
+      "sda": 18,
+      "scl": 23
+    },
+    "poll_interval_ms": 3000,
+    "enabled": true,
+    "description": "Secondary atmospheric pressure and temperature sensor"
+  },
+  "bmi160_1": {
+    "name": "Motion IMU",
+    "type": "BMI160",
+    "interface": "I2C",
+    "address": "0x68",
+    "pins": {
+      "sda": 16,
+      "scl": 17
+    },
+    "poll_interval_ms": 200,
+    "enabled": true,
+    "description": "6-axis accelerometer and gyroscope IMU"
+  },
+  "ds18b20_1": {
+    "name": "Precision Temp",
+    "type": "DS18B20",
+    "interface": "1-Wire",
+    "pins": {
+      "data": 5
+    },
+    "poll_interval_ms": 5000,
+    "enabled": true,
+    "description": "1-Wire digital temperature probe"
+  },
+  "dht11_1": {
+    "name": "DHT Ambience",
+    "type": "DHT11",
+    "interface": "GPIO",
+    "pins": {
+      "data": 19
+    },
+    "poll_interval_ms": 10000,
+    "enabled": true,
+    "description": "Ambient temperature and humidity sensor"
+  }
+}

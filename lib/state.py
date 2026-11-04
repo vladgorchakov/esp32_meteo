@@ -19,6 +19,7 @@ _state = {
     # Sensor status
     "sensors_total": 0,
     "sensors_active": 0,
+    "sensors_data": {},
 
     # Power & Battery
     "power_source": "USB",

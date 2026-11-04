@@ -8,6 +8,7 @@ from lib import diagnostics
 from lib.display_manager import display
 from lib.input_manager import input_mgr
 from lib.screen_manager import screen_mgr
+from lib.sensor_manager import sensor_mgr
 
 try:
     import asyncio
@@ -18,13 +19,6 @@ except ImportError:
 # -----------------------------------------------------------------------------
 # Placeholder Coroutines for Future Phases (Next Phases)
 # -----------------------------------------------------------------------------
-
-async def task_sensor_runner():
-    """Placeholder task for scheduled sensor acquisition (BME280, DS18B20, etc.)."""
-    print("[SENSOR] next phase: Sensor polling loop")
-    while True:
-        await asyncio.sleep(config.DEFAULT_SENSOR_INTERVAL_SEC)
-
 
 async def task_network_runner():
     """Placeholder task for Wi-Fi station management and reconnection logic."""
@@ -65,8 +59,8 @@ async def main_async():
     asyncio.create_task(input_mgr.poll_task())
     asyncio.create_task(screen_mgr.ui_task())
 
-    # Spawn placeholder background tasks
-    asyncio.create_task(task_sensor_runner())
+    # Spawn background tasks
+    asyncio.create_task(sensor_mgr.poll_task())
     asyncio.create_task(task_network_runner())
     asyncio.create_task(task_mqtt_runner())
     asyncio.create_task(task_heartbeat_runner())
@@ -104,7 +98,13 @@ def start():
     print("[BOOT] Initializing display and input subsystems...")
     screen_mgr.init()
 
-    # 5. Start asyncio event loop
+    # 5. Initialize sensors and register dynamic screens
+    print("[BOOT] Initializing sensor subsystem and dynamic screens...")
+    sensor_mgr.init()
+    screen_mgr.register_sensor_screens(sensor_mgr.get_all_sensors())
+    sensor_mgr.set_update_callback(screen_mgr.mark_dirty)
+
+    # 6. Start asyncio event loop
     try:
         asyncio.run(main_async())
     except KeyboardInterrupt:
