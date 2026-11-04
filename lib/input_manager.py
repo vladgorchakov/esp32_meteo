@@ -27,6 +27,15 @@ POLL_INTERVAL_MS = 25
 STABLE_TICKS_REQUIRED = 2
 LONG_PRESS_MS = 800
 
+# ESP32 GPI pins: input only, silicon does not have internal pull-ups or pull-downs
+INPUT_ONLY_PINS = (34, 35, 36, 39)
+
+# Quadrature encoder 2-bit state transition table
+QUAD_TRANSITIONS = {
+    (0b11, 0b01): 1, (0b01, 0b00): 1, (0b00, 0b10): 1, (0b10, 0b11): 1,
+    (0b11, 0b10): -1, (0b10, 0b00): -1, (0b00, 0b01): -1, (0b01, 0b11): -1,
+}
+
 
 class Button:
     """State tracker for an individual physical button or touch pad."""
@@ -48,6 +57,9 @@ class Button:
             try:
                 if self.is_touch and getattr(board_config, "TOUCH_USE_HARDWARE_TOUCHPAD", False):
                     self.touch_pad = machine.TouchPad(machine.Pin(pin_num))
+                elif pin_num in INPUT_ONLY_PINS:
+                    # ESP32 input-only pins (34, 35, 36, 39) cannot enable internal pull-up
+                    self.pin = machine.Pin(pin_num, machine.Pin.IN)
                 else:
                     self.pin = machine.Pin(pin_num, machine.Pin.IN, machine.Pin.PULL_UP)
             except Exception as exc:
@@ -77,16 +89,67 @@ class Button:
         return False
 
 
+class RotaryEncoder:
+    """Quadrature rotary encoder reader with debouncing and step accumulation."""
+
+    def __init__(self, pin_clk, pin_dt, steps_per_click=2):
+        self.pin_clk_num = pin_clk
+        self.pin_dt_num = pin_dt
+        self.steps_per_click = steps_per_click
+        self.pin_clk = None
+        self.pin_dt = None
+        self.last_state = 0b11
+        self.accum = 0
+
+        if HAVE_MACHINE:
+            try:
+                self.pin_clk = machine.Pin(pin_clk, machine.Pin.IN, machine.Pin.PULL_UP)
+                self.pin_dt = machine.Pin(pin_dt, machine.Pin.IN, machine.Pin.PULL_UP)
+                clk_v = self.pin_clk.value()
+                dt_v = self.pin_dt.value()
+                self.last_state = (clk_v << 1) | dt_v
+            except Exception as exc:
+                print("[INPUT] Error initializing rotary encoder (pins {}, {}): {}".format(pin_clk, pin_dt, exc))
+
+    def poll(self):
+        """Read encoder pins and return 'CW', 'CCW', or None."""
+        if not HAVE_MACHINE or self.pin_clk is None or self.pin_dt is None:
+            return None
+
+        try:
+            clk_v = self.pin_clk.value()
+            dt_v = self.pin_dt.value()
+            curr = (clk_v << 1) | dt_v
+            if curr == self.last_state:
+                return None
+
+            step = QUAD_TRANSITIONS.get((self.last_state, curr), 0)
+            self.last_state = curr
+            self.accum += step
+
+            if self.accum >= self.steps_per_click:
+                self.accum = 0
+                return "CW"
+            elif self.accum <= -self.steps_per_click:
+                self.accum = 0
+                return "CCW"
+
+            return None
+        except Exception:
+            return None
+
+
 class InputManager:
-    """Manages button polling coroutine and event queue dispatch."""
+    """Manages button polling coroutine, rotary encoder, and event queue dispatch."""
 
     def __init__(self):
         self.event_queue = asyncio.Queue()
         self.buttons = []
+        self.encoder = None
         self._running = False
 
     def init(self):
-        """Configure button hardware and registers."""
+        """Configure button hardware, rotary encoder, and registers."""
         self.buttons = [
             Button("BUTTON_1", board_config.PIN_BUTTON_1),
             Button("BUTTON_2", board_config.PIN_BUTTON_2),
@@ -95,14 +158,34 @@ class InputManager:
             Button("BUTTON_5", board_config.PIN_BUTTON_5),
             Button("TOUCH_BUTTON", board_config.PIN_TOUCH_BUTTON, is_touch=True),
         ]
-        print("[INPUT] Configured 6 input channels (BUTTON_1..5, TOUCH_BUTTON)")
+
+        # Rotary encoder push switch
+        if hasattr(board_config, "PIN_ROTARY_ENCODER_SW"):
+            self.buttons.append(Button("ROTARY_SW", board_config.PIN_ROTARY_ENCODER_SW))
+
+        # Quadrature encoder (CLK/DT)
+        if hasattr(board_config, "PIN_ROTARY_ENCODER_CLK") and hasattr(board_config, "PIN_ROTARY_ENCODER_DT"):
+            self.encoder = RotaryEncoder(board_config.PIN_ROTARY_ENCODER_CLK, board_config.PIN_ROTARY_ENCODER_DT)
+        else:
+            self.encoder = None
+
+        print("[INPUT] Configured {} button channels + Rotary Encoder".format(len(self.buttons)))
 
     async def poll_task(self):
-        """Async polling loop for debouncing and press duration classification."""
+        """Async polling loop for debouncing, press duration, and rotary encoder."""
         self._running = True
         while self._running:
             now = time.ticks_ms()
 
+            # Poll rotary encoder rotation
+            if self.encoder is not None:
+                enc_direction = self.encoder.poll()
+                if enc_direction == "CW":
+                    await self.event_queue.put(("ROTARY", "CW"))
+                elif enc_direction == "CCW":
+                    await self.event_queue.put(("ROTARY", "CCW"))
+
+            # Poll buttons
             for btn in self.buttons:
                 raw = 1 if btn.read_is_pressed() else 0
 

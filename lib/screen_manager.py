@@ -123,22 +123,29 @@ class ScreenManager:
 
     def handle_input_event(self, button_name, event_type):
         """Route user input events according to system state and navigation rules."""
-        # 1. If display is OFF, ignore all buttons except BUTTON_5 (§6.1)
+        # 1. If display is OFF, ignore all buttons except BUTTON_5 and ROTARY_SW (§6.1)
         if not display.is_on():
-            if button_name == "BUTTON_5" and event_type == "SHORT":
+            if button_name in ("BUTTON_5", "ROTARY_SW") and event_type == "SHORT":
                 self.toggle_display_power()
             return
 
-        # 2. Let active screen handle event first
+        # 2. Let active screen handle event first (e.g. MenuScreen)
         if self.current_screen.on_event(button_name, event_type):
             return
 
-        # 3. Global navigation bindings (when not consumed by screen)
-        if event_type == "SHORT":
+        # 3. Global navigation bindings (when not consumed by active screen)
+        if button_name == "ROTARY":
+            if not self.in_menu:
+                if event_type == "CW":
+                    self.next_screen()
+                elif event_type == "CCW":
+                    self.prev_screen()
+
+        elif event_type == "SHORT":
             if button_name == "BUTTON_5":
                 self.toggle_display_power()
 
-            elif button_name == "TOUCH_BUTTON":
+            elif button_name in ("TOUCH_BUTTON", "ROTARY_SW"):
                 self.toggle_menu()
 
             elif not self.in_menu:
@@ -150,6 +157,10 @@ class ScreenManager:
                     self.first_screen()
                 elif button_name == "BUTTON_4":
                     self.last_screen()
+
+        elif event_type == "LONG":
+            if button_name == "ROTARY_SW":
+                self.toggle_display_power()
 
     async def ui_task(self):
         """Main UI task loop: process input events, update view, and render display."""

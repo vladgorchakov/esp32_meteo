@@ -108,7 +108,7 @@ class MenuScreen(BaseScreen):
 
     def on_event(self, button_name, event_type):
         """Process menu navigation and selection buttons."""
-        if event_type != "SHORT":
+        if event_type not in ("SHORT", "LONG", "CW", "CCW"):
             return False
 
         # -----------------------------------------------------------------
@@ -116,28 +116,28 @@ class MenuScreen(BaseScreen):
         # -----------------------------------------------------------------
         if self.modal_state is not None:
             if self.modal_state == "RESTART":
-                if button_name == "BUTTON_3":
+                if button_name in ("BUTTON_3", "ROTARY_SW") and event_type == "SHORT":
                     print("[SYS] Reboot confirmed by user. Resetting...")
                     if HAVE_MACHINE:
                         machine.reset()
                     return True
-                elif button_name == "BUTTON_1":
+                elif button_name == "BUTTON_1" or (button_name == "ROTARY_SW" and event_type == "LONG"):
                     self.modal_state = None
                     return True
 
             elif self.modal_state == "FACTORY_RESET":
-                if button_name == "BUTTON_3":
+                if button_name in ("BUTTON_3", "ROTARY_SW") and event_type == "SHORT":
                     print("[SYS] Factory reset confirmed. Erasing /data directory...")
                     self._perform_factory_reset()
                     if HAVE_MACHINE:
                         machine.reset()
                     return True
-                elif button_name == "BUTTON_1":
+                elif button_name == "BUTTON_1" or (button_name == "ROTARY_SW" and event_type == "LONG"):
                     self.modal_state = None
                     return True
 
             elif self.modal_state in ("WEB_UI", "NOTICE"):
-                if button_name in ("BUTTON_1", "BUTTON_5", "TOUCH_BUTTON"):
+                if button_name in ("BUTTON_1", "BUTTON_5", "TOUCH_BUTTON", "ROTARY_SW"):
                     self.modal_state = None
                     return True
             return True
@@ -145,19 +145,19 @@ class MenuScreen(BaseScreen):
         # -----------------------------------------------------------------
         # Standard Menu Navigation
         # -----------------------------------------------------------------
-        if button_name == "BUTTON_4":  # Down
+        if button_name == "BUTTON_4" or (button_name == "ROTARY" and event_type == "CW"):  # Down
             self.selected_idx = (self.selected_idx + 1) % len(MENU_ITEMS)
             return True
 
-        elif button_name == "BUTTON_2":  # Up
+        elif button_name == "BUTTON_2" or (button_name == "ROTARY" and event_type == "CCW"):  # Up
             self.selected_idx = (self.selected_idx - 1) % len(MENU_ITEMS)
             return True
 
-        elif button_name in ("BUTTON_5", "BUTTON_3"):  # Select / Confirm
+        elif (button_name in ("BUTTON_5", "BUTTON_3") and event_type == "SHORT") or (button_name == "ROTARY_SW" and event_type == "SHORT"):  # Select / Confirm
             self._execute_action(MENU_ITEMS[self.selected_idx])
             return True
 
-        elif button_name in ("BUTTON_1", "TOUCH_BUTTON"):  # Back / Exit Menu
+        elif (button_name in ("BUTTON_1", "TOUCH_BUTTON") and event_type == "SHORT") or (button_name == "ROTARY_SW" and event_type == "LONG"):  # Back / Exit Menu
             self.sm.close_menu()
             return True
 
